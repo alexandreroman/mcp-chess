@@ -19,6 +19,7 @@ package com.broadcom.tanzu.demos.mcp.chess;
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.github.alexandreroman.chessimage.ChessRenderer;
 import io.github.wolfraam.chessgame.ChessGame;
 import io.github.wolfraam.chessgame.notation.NotationType;
 import org.slf4j.Logger;
@@ -26,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
+
+import java.awt.image.BufferedImage;
 
 @Component
 class ChessTools {
@@ -59,6 +62,22 @@ class ChessTools {
         final var resp = game.isLegalMove(game.getMove(NotationType.UCI, move));
         logger.atInfo().log("Is move {} legal in FEN {}? {}", move, fen, resp ? "yes" : "no");
         return new MoveLegality(fen, move, resp);
+    }
+
+    @Tool(name = "chess_generate_board_image", description = """
+            Generate a board image in a chess game from a Forsyth-Edwards Notation (FEN).
+            If no FEN is provided, a board image with the default starting position is generated.
+            """)
+    BufferedImage generateBoardImage(@ToolParam(description = "Board state in FEN", required = false) String fen) {
+        if (fen == null) {
+            logger.atDebug().log("No FEN provided, using a default position");
+            fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+        }
+        logger.atInfo().log("Rendering board to PNG image: {}", fen);
+        final int squareSize = 80;
+        final var img = new BufferedImage(squareSize * 8, squareSize * 8, BufferedImage.TYPE_INT_ARGB);
+        new ChessRenderer().render(fen, img);
+        return img;
     }
 }
 
