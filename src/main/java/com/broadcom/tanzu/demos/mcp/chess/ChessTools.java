@@ -16,6 +16,9 @@
 
 package com.broadcom.tanzu.demos.mcp.chess;
 
+import com.fasterxml.jackson.annotation.JsonClassDescription;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.github.wolfraam.chessgame.ChessGame;
 import io.github.wolfraam.chessgame.notation.NotationType;
 import org.slf4j.Logger;
@@ -35,29 +38,47 @@ class ChessTools {
 
     @Tool(name = "chess_guess_next_move", description = """
             Guess the next move to play in a chess game.
-            This tool returns a move in UCI format (for instance: d2d3).
-            If the next move is unknown, 'null' is returned.
             """)
-    String guessNextMove(@ToolParam(description = "Board state in Forsyth-Edwards Notation") String fen) {
+    NextMove guessNextMove(@ToolParam(description = "Board state in Forsyth-Edwards Notation") String fen) {
         logger.atDebug().log("Guessing next move from FEN: {}", fen);
         final var game = new ChessGame(fen);
         final var resp = chessEngine.getNextMove(game)
                 .map(move -> game.getNotation(NotationType.UCI, move))
                 .orElse(null);
         logger.atInfo().log("Guessed next move from FEN: {}=>{}", fen, resp);
-        return resp;
+        return new NextMove(fen, resp);
     }
 
     @Tool(name = "chess_is_legal_move", description = """
-            Check if a move is legal.
-            The move is defined in UCI format (for instance: d2d3).
+            Check if a move is legal in a chess game.
             """)
-    boolean isLegalMove(@ToolParam(description = "Board state in Forsyth-Edwards Notation") String fen,
-                        @ToolParam(description = "Move in UCI format") String move) {
+    MoveLegality isLegalMove(@ToolParam(description = "Board state in Forsyth-Edwards Notation") String fen,
+                             @ToolParam(description = "Move in UCI format") String move) {
         logger.atDebug().log("Checking if the move {} is legal in FEN: {}", move, fen);
         final var game = new ChessGame(fen);
         final var resp = game.isLegalMove(game.getMove(NotationType.UCI, move));
         logger.atInfo().log("Is move {} legal in FEN {}? {}", move, fen, resp ? "yes" : "no");
-        return resp;
+        return new MoveLegality(fen, move, resp);
     }
+}
+
+@JsonClassDescription("A structure holding the legality of a move in a chess game")
+record MoveLegality(
+        @JsonPropertyDescription("Board state in Forsyth-Edwards Notation (FEN) before the move")
+        String fen,
+        @JsonPropertyDescription("Move to check in UCI format (for instance: d2d3)")
+        String move,
+        @JsonPropertyDescription("Move legality: true if the move is legal in the current board state")
+        boolean legal
+) {
+}
+
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonClassDescription("A structure holding a board state and the best move to play in a chess game")
+record NextMove(
+        @JsonPropertyDescription("Board state in Forsyth-Edwards Notation (FEN)")
+        String fen,
+        @JsonPropertyDescription("Next move to play in UCI format (for instance: d2d3), if any")
+        String nextMove
+) {
 }
